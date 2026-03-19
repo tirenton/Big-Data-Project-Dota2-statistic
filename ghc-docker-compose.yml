@@ -1,4 +1,3 @@
-
 services:
   # ============================================
   # ZOOKEEPER & KAFKA
@@ -200,9 +199,7 @@ services:
   # DATA COLLECTOR (Custom Python)
   # ============================================
   data-collector:
-    build:
-      context: ./data-collector
-      dockerfile: Dockerfile
+    image: ghcr.io/tirenton/dota2-data-collector:latest
     container_name: data-collector
     depends_on:
       kafka:
@@ -219,7 +216,7 @@ services:
       - OPENDOTA_API_KEY=${OPENDOTA_API_KEY:-}
       - HDFS_NAMENODE=hdfs://namenode:9000
     volumes:
-      - ./data-collector:/app
+      # Removed local source code binding to force execution from image
       - collected_data:/app/data
     networks:
       - dota2-network
@@ -229,9 +226,7 @@ services:
   # SPARK PROCESSOR (Custom PySpark)
   # ============================================
   spark-processor:
-    build:
-      context: ./spark-processor
-      dockerfile: Dockerfile
+    image: ghcr.io/tirenton/dota2-spark-processor:latest
     container_name: spark-processor
     depends_on:
       - spark-master
@@ -260,4 +255,3 @@ volumes:
   hive_metastore_data:
   es_data:
   collected_data:
-
