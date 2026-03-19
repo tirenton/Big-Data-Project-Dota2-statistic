@@ -98,11 +98,6 @@ docker compose logs -f spark-processor
 
 ## 📊 What Gets Analyzed
 
-### Player Performance Metrics
-- Kills / Deaths / Assists (KDA)
-- Gold Per Minute (GPM) & Experience Per Minute (XPM)
-- Hero damage, tower damage, healing
-
 ### Hero Usage Statistics
 - Pick rate across all matches
 - Win rate per hero
