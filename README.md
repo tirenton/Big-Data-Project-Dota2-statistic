@@ -17,7 +17,6 @@ This system uses an industry-standard modern Data Engineering architecture that 
                │   Python Data Collector    │
                │  - Fetch API data          │
                │  - Convert → Game Logs     │
-               │  - Simulate streaming      │
                └──────┬───────────────────┬─┘
        Speed Layer    │                   │   Batch Layer
      (Real-time)      │                   │   (Analytics)
@@ -98,20 +97,12 @@ docker compose logs -f spark-processor
 
 ## 📊 What Gets Analyzed
 
-### Player Performance Metrics
-- Kills / Deaths / Assists (KDA)
-- Gold Per Minute (GPM) & Experience Per Minute (XPM)
-- Hero damage, tower damage, healing
-
 ### Hero Usage Statistics
-- Pick rate across all matches
-- Win rate per hero
-- Average KDA, GPM, XPM per hero
+- Top 20 Hero Pick Rates (Bar Chart)
+- Exact Hero Pick Distribution (Donut Pie Chart)
 
-### Match Trends
-- Average match duration
-- Radiant vs Dire win rates
-- Score distributions
+### Match Outcomes & Trends
+- Radiant vs Dire Team Win/Loss Correlation (Nested Pie Chart)
 
 ## 🔧 Configuration
 
