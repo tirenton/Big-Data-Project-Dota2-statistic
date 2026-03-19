@@ -1,0 +1,40 @@
+{
+  "mappings": {
+    "properties": {
+      "timestamp": { "type": "date" },
+      "event_type": { "type": "keyword" },
+      "match_id": { "type": "long" },
+      "duration": { "type": "integer" },
+      "game_mode": { "type": "integer" },
+      "radiant_score": { "type": "integer" },
+      "dire_score": { "type": "integer" },
+      "radiant_win": { "type": "boolean" },
+      "account_id": { "type": "long" },
+      "player_name": { "type": "keyword" },
+      "player_slot": { "type": "integer" },
+      "team": { "type": "keyword" },
+      "result": { "type": "keyword" },
+      "hero_id": { "type": "integer" },
+      "hero_name": { "type": "keyword" },
+      "kills": { "type": "integer" },
+      "deaths": { "type": "integer" },
+      "assists": { "type": "integer" },
+      "kda": { "type": "float" },
+      "gpm": { "type": "integer" },
+      "xpm": { "type": "integer" },
+      "hero_damage": { "type": "integer" },
+      "hero_healing": { "type": "integer" },
+      "tower_damage": { "type": "integer" },
+      "last_hits": { "type": "integer" },
+      "denies": { "type": "integer" },
+      "level": { "type": "integer" }
+    }
+  },
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0,
+    "index": {
+      "refresh_interval": "5s"
+    }
+  }
+}

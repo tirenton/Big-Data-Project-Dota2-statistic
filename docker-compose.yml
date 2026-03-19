@@ -1,0 +1,263 @@
+
+services:
+  # ============================================
+  # ZOOKEEPER & KAFKA
+  # ============================================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - dota2-network
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo ruok | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - dota2-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  # ============================================
+  # HADOOP HDFS
+  # ============================================
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    ports:
+      - "9870:9870"
+      - "9000:9000"
+    environment:
+      - CLUSTER_NAME=dota2-cluster
+    env_file:
+      - ./hadoop.env
+    volumes:
+      - namenode_data:/hadoop/dfs/name
+    networks:
+      - dota2-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9870"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    depends_on:
+      namenode:
+        condition: service_healthy
+    ports:
+      - "9864:9864"
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
+    env_file:
+      - ./hadoop.env
+    volumes:
+      - datanode_data:/hadoop/dfs/data
+    networks:
+      - dota2-network
+
+  # ============================================
+  # HIVE
+  # ============================================
+  hive-metastore-postgresql:
+    image: bde2020/hive-metastore-postgresql:2.3.0
+    container_name: hive-metastore-postgresql
+    volumes:
+      - hive_metastore_data:/var/lib/postgresql/data
+    networks:
+      - dota2-network
+
+  hive-metastore:
+    image: bde2020/hive:2.3.2-postgresql-metastore
+    container_name: hive-metastore
+    depends_on:
+      - hive-metastore-postgresql
+      - namenode
+      - datanode
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870 datanode:9864 hive-metastore-postgresql:5432"
+    command: /opt/hive/bin/hive --service metastore
+    ports:
+      - "9083:9083"
+    env_file:
+      - ./hadoop.env
+    networks:
+      - dota2-network
+
+  hive-server:
+    image: bde2020/hive:2.3.2-postgresql-metastore
+    container_name: hive-server
+    depends_on:
+      - hive-metastore
+    environment:
+      HIVE_CORE_CONF_javax_jdo_option_ConnectionURL: "jdbc:postgresql://hive-metastore-postgresql/metastore"
+      SERVICE_PRECONDITION: "hive-metastore:9083"
+    ports:
+      - "10000:10000"
+      - "10002:10002"
+    env_file:
+      - ./hadoop.env
+    networks:
+      - dota2-network
+
+  # ============================================
+  # SPARK
+  # ============================================
+  spark-master:
+    image: apache/spark:3.5.3
+    container_name: spark-master
+    command: bash -c "/opt/spark/bin/spark-class org.apache.spark.deploy.master.Master --host spark-master --port 7077 --webui-port 8080"
+    environment:
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_NO_DAEMONIZE=true
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    networks:
+      - dota2-network
+
+  spark-worker:
+    image: apache/spark:3.5.3
+    container_name: spark-worker
+    command: bash -c "/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --webui-port 8081"
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2
+      - SPARK_NO_DAEMONIZE=true
+    ports:
+      - "8081:8081"
+    networks:
+      - dota2-network
+
+  # ============================================
+  # ELASTICSEARCH & KIBANA
+  # ============================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - dota2-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: kibana
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - xpack.security.enabled=false
+    ports:
+      - "5601:5601"
+    networks:
+      - dota2-network
+
+  # ============================================
+  # DATA COLLECTOR (Custom Python)
+  # ============================================
+  data-collector:
+    build:
+      context: ./data-collector
+      dockerfile: Dockerfile
+    container_name: data-collector
+    depends_on:
+      kafka:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - KAFKA_BROKER=kafka:9092
+      - KAFKA_TOPIC=dota2-match-logs
+      - ES_HOST=elasticsearch
+      - ES_PORT=9200
+      - MATCH_BATCH_SIZE=${MATCH_BATCH_SIZE:-50}
+      - API_DELAY=${API_DELAY:-1.2}
+      - OPENDOTA_API_KEY=${OPENDOTA_API_KEY:-}
+      - HDFS_NAMENODE=hdfs://namenode:9000
+    volumes:
+      - ./data-collector:/app
+      - collected_data:/app/data
+    networks:
+      - dota2-network
+    restart: "no"
+
+  # ============================================
+  # SPARK PROCESSOR (Custom PySpark)
+  # ============================================
+  spark-processor:
+    build:
+      context: ./spark-processor
+      dockerfile: Dockerfile
+    container_name: spark-processor
+    depends_on:
+      - spark-master
+      - spark-worker
+      - kafka
+      - elasticsearch
+      - namenode
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - KAFKA_BROKER=kafka:9092
+      - KAFKA_TOPIC=dota2-match-logs
+      - ES_HOST=elasticsearch
+      - ES_PORT=9200
+      - HDFS_NAMENODE=hdfs://namenode:9000
+    networks:
+      - dota2-network
+    restart: "no"
+
+networks:
+  dota2-network:
+    driver: bridge
+
+volumes:
+  namenode_data:
+  datanode_data:
+  hive_metastore_data:
+  es_data:
+  collected_data:
+

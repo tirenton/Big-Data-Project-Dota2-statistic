@@ -1,0 +1,7 @@
+requests
+kafka-python
+elasticsearch
+python-dotenv
+pandas
+matplotlib
+seaborn
