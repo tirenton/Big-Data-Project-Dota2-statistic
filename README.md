@@ -50,7 +50,7 @@ This project strictly integrates **7 major big data stack components**:
 4. **Apache Hive (Data Warehouse/Querying)**: Sits on top of the Hadoop file system to provide a SQL interface, allowing data scientists to run structured MapReduce SQL queries across terabytes of flat Parquet files.
 5. **Elasticsearch (NoSQL Search Engine)**: Extremely fast document-oriented database that ingests a replica of the player events to allow sub-millisecond metric aggregations (used natively over Hadoop for real-time speed).
 6. **Kibana (Data Visualization)**: Connects natively to the Elasticsearch clusters to provide a real-time, zero-latency dynamic dashboard layout for the end-user.
-7. **Docker (Cluster Orchestration)**: Containerizes all 9 Big Data microservices into portable, isolated containers operating on an internal custom virtual sub-network.
+7. **Docker (Cluster Orchestration)**: Containerizes all 13 microservices into portable, isolated containers operating on an internal custom virtual sub-network.
 
 ## 🚀 Quick Start
 
@@ -76,14 +76,14 @@ cd dota2-analytics
 
 **Manual start:**
 ```bash
-# Start all services
+# Start all infrastructure services
 docker compose up -d
 
-# Watch the data collector
-docker compose logs -f data-collector
+# Run the data collector pipeline (fetches data from OpenDota API)
+docker compose run --rm data-collector python main.py
 
-# Watch the Spark processor
-docker compose logs -f spark-processor
+# Run the Spark processor (batch analytics to HDFS/Hive)
+docker compose run --rm spark-processor
 ```
 
 ### Access the Dashboards
@@ -123,16 +123,22 @@ API_DELAY=1.2
 
 ```
 dota2-analytics/
-├── docker-compose.yml          # Service orchestration
-├── .env                        # Configuration
-├── hadoop.env                  # Hadoop settings
+├── docker-compose.yml          # Service orchestration (13 containers)
+├── proto-docker-compose.yml    # Development version (local build)
+├── ghc-docker-compose.yml      # Production version (GHCR images)
+├── Control_Panel.ipynb         # Jupyter Notebook pipeline controller
+├── .env                        # API keys & configuration
+├── hadoop.env                  # Hadoop cluster settings
 ├── data-collector/             # Python data collection
 │   ├── main.py                 # Pipeline orchestrator
 │   ├── collector.py            # OpenDota API client
 │   ├── log_transformer.py      # JSON → log event converter
 │   ├── kafka_producer.py       # Kafka message producer
 │   ├── es_indexer.py           # Elasticsearch indexer
-│   └── hero_constants.py       # Hero ID → name mapping
+│   ├── hero_constants.py       # Hero ID → name mapping
+│   ├── index_hero_stats.py     # Hero stats aggregator
+│   ├── fix_kibana.py           # Kibana dashboard reset tool
+│   └── dashboards.ndjson       # Dashboard config (copy for import)
 ├── spark-processor/            # PySpark analytics
 │   └── spark_processor.py      # Spark batch processing job
 ├── hive/
@@ -141,6 +147,7 @@ dota2-analytics/
 │   └── index_mapping.json      # ES index template
 ├── kibana/
 │   └── dashboards.ndjson       # Pre-built Kibana dashboards
+├── jupyter/                    # Jupyter Docker config (optional)
 └── scripts/
     ├── start.sh                # Linux startup script
     └── start.ps1               # Windows startup script
