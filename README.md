@@ -90,10 +90,12 @@ docker compose run --rm spark-processor
 
 | Service | URL |
 |---|---|
+| 🎮 **Web Dashboard** | [http://localhost:3000](http://localhost:3000) |
 | 📊 **Kibana Dashboard** | [http://localhost:5601](http://localhost:5601) |
 | ⚡ **Spark Master UI** | [http://localhost:8080](http://localhost:8080) |
 | 📁 **HDFS NameNode UI** | [http://localhost:9870](http://localhost:9870) |
 | 🔍 **Elasticsearch** | [http://localhost:9200](http://localhost:9200) |
+| 🔧 **Dashboard API** | [http://localhost:4000/api/health](http://localhost:4000/api/health) |
 
 ## 📊 What Gets Analyzed
 
@@ -148,6 +150,13 @@ dota2-analytics/
 ├── kibana/
 │   └── dashboards.ndjson       # Pre-built Kibana dashboards
 ├── jupyter/                    # Jupyter Docker config (optional)
+├── web-dashboard/              # Custom analytics dashboard
+│   ├── backend/                # NestJS API (reads from ES)
+│   │   ├── src/analytics/      # Analytics controller & service
+│   │   └── Dockerfile
+│   └── frontend/               # Next.js dashboard UI
+│       ├── src/app/            # App Router pages & components
+│       └── Dockerfile
 └── scripts/
     ├── start.sh                # Linux startup script
     └── start.ps1               # Windows startup script

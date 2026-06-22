@@ -15,13 +15,13 @@ echo "============================================"
 echo ""
 
 # Step 1: Start infrastructure services
-echo "[1/7] Starting infrastructure services (Kafka, HDFS, Hive, ES, Spark)..."
+echo "[1/8] Starting infrastructure services (Kafka, HDFS, Hive, ES, Spark)..."
 docker compose up -d zookeeper kafka namenode datanode \
     hive-metastore-postgresql hive-metastore hive-server \
     spark-master spark-worker elasticsearch kibana
 
 echo ""
-echo "[2/7] Waiting for services to be healthy..."
+echo "[2/8] Waiting for services to be healthy..."
 echo "  Waiting for Kafka..."
 until docker exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1; do
     sleep 5
@@ -45,7 +45,7 @@ echo "  ✓ HDFS is ready"
 
 # Step 3: Create Kafka topic
 echo ""
-echo "[3/7] Creating Kafka topic..."
+echo "[3/8] Creating Kafka topic..."
 docker exec kafka kafka-topics --create \
     --topic dota2-match-logs \
     --bootstrap-server localhost:9092 \
@@ -56,7 +56,7 @@ echo "  ✓ Kafka topic ready"
 
 # Step 4: Create ES index mapping
 echo ""
-echo "[4/7] Setting up Elasticsearch index..."
+echo "[4/8] Setting up Elasticsearch index..."
 curl -s -X PUT "http://localhost:9200/dota2_player_stats" \
     -H "Content-Type: application/json" \
     -d @elasticsearch/index_mapping.json > /dev/null 2>&1 || true
@@ -64,7 +64,7 @@ echo "  ✓ Elasticsearch index ready"
 
 # Step 5: Create HDFS directories
 echo ""
-echo "[5/7] Creating HDFS directories..."
+echo "[5/8] Creating HDFS directories..."
 docker exec namenode hdfs dfs -mkdir -p /dota2/raw 2>/dev/null || true
 docker exec namenode hdfs dfs -mkdir -p /dota2/processed 2>/dev/null || true
 docker exec namenode hdfs dfs -chmod -R 777 /dota2 2>/dev/null || true
@@ -72,19 +72,26 @@ echo "  ✓ HDFS directories ready"
 
 # Step 6: Start data collector
 echo ""
-echo "[6/7] Starting data collector (fetching from OpenDota API)..."
+echo "[6/8] Starting data collector (fetching from OpenDota API)..."
 docker compose up -d --build data-collector
 echo "  ✓ Data collector started"
 echo "  → Follow logs: docker compose logs -f data-collector"
 
 # Step 7: Start Spark processor (after a delay)
 echo ""
-echo "[7/7] Starting Spark processor (will wait for data)..."
+echo "[7/8] Starting Spark processor (will wait for data)..."
 docker compose up -d --build spark-processor
 echo "  ✓ Spark processor started"
 echo "  → Follow logs: docker compose logs -f spark-processor"
 
-# Step 8: Import Kibana dashboards
+# Step 8: Start Web Dashboard (NestJS + Next.js)
+echo ""
+echo "[8/8] Starting Web Dashboard (NestJS + Next.js)..."
+docker compose up -d --build dashboard-api dashboard-ui
+echo "  ✓ Web Dashboard started"
+echo "  → UI URL: http://localhost:3000"
+
+# Import Kibana dashboards
 echo ""
 echo "Waiting for Kibana to be ready..."
 until curl -s http://localhost:5601/api/status | grep -q '"level":"available"' 2>/dev/null; do
@@ -113,6 +120,8 @@ echo "  Spark Master UI:    http://localhost:8080"
 echo "  HDFS NameNode UI:   http://localhost:9870"
 echo "  Kafka:              localhost:29092"
 echo "  Hive Server:        localhost:10000"
+echo "  Web Dashboard UI:   http://localhost:3000"
+echo "  Web Dashboard API:  http://localhost:4000"
 echo ""
 echo "  Useful commands:"
 echo "  ─────────────────────────────────────"

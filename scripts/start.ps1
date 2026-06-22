@@ -12,14 +12,14 @@ Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Step 1: Start infrastructure
-Write-Host "[1/7] Starting infrastructure services..." -ForegroundColor Yellow
+Write-Host "[1/8] Starting infrastructure services..." -ForegroundColor Yellow
 docker compose up -d zookeeper kafka namenode datanode `
     hive-metastore-postgresql hive-metastore hive-server `
     spark-master spark-worker elasticsearch kibana
 
 # Step 2: Wait for services
 Write-Host ""
-Write-Host "[2/7] Waiting for services to be healthy..." -ForegroundColor Yellow
+Write-Host "[2/8] Waiting for services to be healthy..." -ForegroundColor Yellow
 
 Write-Host "  Waiting for Kafka..."
 do {
@@ -44,20 +44,20 @@ Write-Host "  ✓ HDFS is ready" -ForegroundColor Green
 
 # Step 3: Create Kafka topic
 Write-Host ""
-Write-Host "[3/7] Creating Kafka topic..." -ForegroundColor Yellow
+Write-Host "[3/8] Creating Kafka topic..." -ForegroundColor Yellow
 docker exec kafka kafka-topics --create --topic dota2-match-logs --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1 --if-not-exists 2>$null
 Write-Host "  ✓ Kafka topic ready" -ForegroundColor Green
 
 # Step 4: ES index
 Write-Host ""
-Write-Host "[4/7] Setting up Elasticsearch index..." -ForegroundColor Yellow
+Write-Host "[4/8] Setting up Elasticsearch index..." -ForegroundColor Yellow
 $mapping = Get-Content "elasticsearch/index_mapping.json" -Raw
 try { Invoke-RestMethod -Uri "http://localhost:9200/dota2_player_stats" -Method Put -ContentType "application/json" -Body $mapping -ErrorAction SilentlyContinue } catch {}
 Write-Host "  ✓ Elasticsearch index ready" -ForegroundColor Green
 
 # Step 5: HDFS directories
 Write-Host ""
-Write-Host "[5/7] Creating HDFS directories..." -ForegroundColor Yellow
+Write-Host "[5/8] Creating HDFS directories..." -ForegroundColor Yellow
 docker exec namenode hdfs dfs -mkdir -p /dota2/raw 2>$null
 docker exec namenode hdfs dfs -mkdir -p /dota2/processed 2>$null
 docker exec namenode hdfs dfs -chmod -R 777 /dota2 2>$null
@@ -65,15 +65,21 @@ Write-Host "  ✓ HDFS directories ready" -ForegroundColor Green
 
 # Step 6: Data collector
 Write-Host ""
-Write-Host "[6/7] Starting data collector..." -ForegroundColor Yellow
+Write-Host "[6/8] Starting data collector..." -ForegroundColor Yellow
 docker compose up -d --build data-collector
 Write-Host "  ✓ Data collector started" -ForegroundColor Green
 
 # Step 7: Spark processor
 Write-Host ""
-Write-Host "[7/7] Starting Spark processor..." -ForegroundColor Yellow
+Write-Host "[7/8] Starting Spark processor..." -ForegroundColor Yellow
 docker compose up -d --build spark-processor
 Write-Host "  ✓ Spark processor started" -ForegroundColor Green
+
+# Step 8: Web Dashboard
+Write-Host ""
+Write-Host "[8/8] Starting Web Dashboard (NestJS + Next.js)..." -ForegroundColor Yellow
+docker compose up -d --build dashboard-api dashboard-ui
+Write-Host "  ✓ Web Dashboard started" -ForegroundColor Green
 
 # Import Kibana dashboards
 Write-Host ""
@@ -101,6 +107,8 @@ Write-Host "  Spark Master UI:    http://localhost:8080"
 Write-Host "  HDFS NameNode UI:   http://localhost:9870"
 Write-Host "  Kafka:              localhost:29092"
 Write-Host "  Hive Server:        localhost:10000"
+Write-Host "  Web Dashboard UI:   http://localhost:3000"
+Write-Host "  Web Dashboard API:  http://localhost:4000"
 Write-Host ""
 Write-Host "  Useful commands:" -ForegroundColor Cyan
 Write-Host "  View collector logs:  docker compose logs -f data-collector"

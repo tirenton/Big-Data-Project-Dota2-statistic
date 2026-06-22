@@ -250,6 +250,42 @@ services:
       - dota2-network
     restart: "no"
 
+  # ============================================
+  # WEB DASHBOARD (NestJS + Next.js)
+  # ============================================
+  dashboard-api:
+    build:
+      context: ./web-dashboard/backend
+      dockerfile: Dockerfile
+    container_name: dashboard-api
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - ES_HOST=elasticsearch
+      - ES_PORT=9200
+      - PORT=4000
+    ports:
+      - "4000:4000"
+    networks:
+      - dota2-network
+    restart: unless-stopped
+
+  dashboard-ui:
+    build:
+      context: ./web-dashboard/frontend
+      dockerfile: Dockerfile
+    container_name: dashboard-ui
+    depends_on:
+      - dashboard-api
+    environment:
+      - API_URL=http://dashboard-api:4000
+    ports:
+      - "3000:3000"
+    networks:
+      - dota2-network
+    restart: unless-stopped
+
 networks:
   dota2-network:
     driver: bridge
